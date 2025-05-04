@@ -112,3 +112,80 @@ fn validate_non_empty(input: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_post_title_validation_with_valid_input() {
+        // Given a non-empty title
+        let title = "My Post Title";
+
+        // When we create a PostTitle
+        let result = PostTitle::try_new(title);
+
+        // Then it should be successful
+        assert!(result.is_ok());
+        let post_title = result.unwrap();
+        assert_eq!(post_title.to_string(), title);
+    }
+
+    #[test]
+    fn test_post_title_validation_with_empty_input() {
+        // Given an empty title
+        let title = "";
+
+        // When we create a PostTitle
+        let result = PostTitle::try_new(title);
+
+        // Then it should fail
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_post_title_validation_with_whitespace_input() {
+        // Given a title with only whitespace
+        let title = "   \t\n  ";
+
+        // When we create a PostTitle
+        let result = PostTitle::try_new(title);
+
+        // Then it should fail
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_post_body_validation_with_valid_input() {
+        // Given a non-empty body
+        let body = "This is the post content.";
+
+        // When we create a PostBody
+        let result = PostBody::try_new(body);
+
+        // Then it should be successful
+        assert!(result.is_ok());
+        let post_body = result.unwrap();
+        assert_eq!(post_body.to_string(), body);
+    }
+
+    #[test]
+    fn test_post_body_validation_with_empty_input() {
+        // Given an empty body
+        let body = "";
+
+        // When we create a PostBody
+        let result = PostBody::try_new(body);
+
+        // Then it should fail
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_non_empty_function() {
+        assert_eq!(validate_non_empty("test"), Some("test".to_string()));
+        assert_eq!(validate_non_empty(" test "), Some("test".to_string()));
+        assert_eq!(validate_non_empty(""), None);
+        assert_eq!(validate_non_empty("   "), None);
+    }
+}
