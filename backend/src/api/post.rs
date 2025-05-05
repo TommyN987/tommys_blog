@@ -1,14 +1,14 @@
-use axum::{Extension, Json, Router, http::StatusCode, response::IntoResponse, routing::post};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
-use crate::db::postgres::Postgres;
 use crate::domain::{
     models::post::CreatePostRequest as DomainCreatePostRequest,
     repository::{CreatePostError, Repository},
 };
+use crate::server::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CreatePostRequest {
@@ -24,32 +24,48 @@ pub(super) struct PostResponse {
     pub created_at: DateTime<Utc>,
 }
 
-pub fn routes() -> Router {
-    Router::new().route("/posts", post(create_post::<Postgres>))
+pub fn routes<R: Repository>() -> Router<AppState<R>> {
+    Router::new().route("/posts", post(create_post::<R>))
 }
 
-#[instrument(name = "create_post_handler", skip(repo))]
+#[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
 async fn create_post<R: Repository>(
-    Extension(repo): Extension<R>,
+    State(state): State<AppState<R>>,
     Json(payload): Json<CreatePostRequest>,
 ) -> impl IntoResponse {
+    debug!("Received create post request");
+
     // Convert API model to domain model
     let domain_req = match DomainCreatePostRequest::try_from(payload) {
-        Ok(req) => req,
-        Err(_) => return (StatusCode::BAD_REQUEST, Json("Invalid request data")).into_response(),
+        Ok(req) => {
+            debug!("Converted API request to domain request");
+            req
+        }
+        Err(err) => {
+            error!(?err, "Failed to convert API request to domain request");
+            return (StatusCode::BAD_REQUEST, Json("Invalid request data")).into_response();
+        }
     };
 
     // Create post in repository
-    match repo.create_post(&domain_req).await {
-        Ok(post) => (StatusCode::CREATED, Json(PostResponse::from(post))).into_response(),
+    debug!("Calling repository to create post");
+    match state.repo.create_post(&domain_req).await {
+        Ok(post) => {
+            info!(post_id = %post.id(), "Successfully created post");
+            (StatusCode::CREATED, Json(PostResponse::from(post))).into_response()
+        }
         Err(CreatePostError::Duplicate { title }) => {
+            error!(%title, "Duplicate post title");
             let error_msg = format!("Post with title '{}' already exists", title);
             (StatusCode::CONFLICT, Json(error_msg)).into_response()
         }
-        Err(CreatePostError::Unknown(_)) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json("An unexpected error occurred"),
-        )
-            .into_response(),
+        Err(CreatePostError::Unknown(err)) => {
+            error!(?err, "Unknown error creating post");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json("An unexpected error occurred"),
+            )
+                .into_response()
+        }
     }
 }
