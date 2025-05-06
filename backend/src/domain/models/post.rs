@@ -23,7 +23,7 @@ impl Post {
     }
 
     pub fn id(&self) -> Uuid {
-        self.id.clone()
+        self.id
     }
 
     pub fn title(&self) -> PostTitle {
@@ -35,7 +35,7 @@ impl Post {
     }
 
     pub fn created_at(&self) -> DateTime<Utc> {
-        self.created_at.clone()
+        self.created_at
     }
 }
 

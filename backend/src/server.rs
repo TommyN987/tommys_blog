@@ -7,23 +7,23 @@ use tracing::info_span;
 
 use crate::{
     api::{health, post},
-    domain::repository::Repository,
+    domain::service::Service,
 };
 
 #[derive(Debug, Clone)]
-pub struct AppState<R: Repository> {
-    pub repo: Arc<R>,
+pub struct AppState<S: Service> {
+    pub service: Arc<S>,
 }
 
-impl<R: Repository> AppState<R> {
-    pub fn new(repo: R) -> Self {
+impl<S: Service> AppState<S> {
+    pub fn new(service: S) -> Self {
         Self {
-            repo: Arc::new(repo),
+            service: Arc::new(service),
         }
     }
 
-    pub fn repository(&self) -> &Arc<R> {
-        &self.repo
+    pub fn service(&self) -> &Arc<S> {
+        &self.service
     }
 }
 
@@ -38,8 +38,8 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn try_new<R: Repository + 'static>(
-        repo: R,
+    pub async fn try_new<S: Service + 'static>(
+        service: S,
         config: HttpServerConfig<'_>,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
@@ -47,11 +47,11 @@ impl HttpServer {
             info_span!("http_request", method = ?request.method(), uri)
         });
 
-        let state = AppState::new(repo);
+        let state = AppState::new(service);
 
         let router = Router::new()
-            .merge(health::routes::<R>())
-            .merge(post::routes::<R>())
+            .merge(health::routes::<S>())
+            .merge(post::routes::<S>())
             .layer(trace_layer)
             .with_state(state);
 

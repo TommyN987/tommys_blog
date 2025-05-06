@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
+use crate::domain::repository::RepositoryError;
 use crate::domain::{
-    models::post::CreatePostRequest as DomainCreatePostRequest,
-    repository::{CreatePostError, Repository},
+    models::post::CreatePostRequest as DomainCreatePostRequest, repository::CreatePostError,
+    service::Service,
 };
 use crate::server::AppState;
 
@@ -24,18 +25,17 @@ pub(super) struct PostResponse {
     pub created_at: DateTime<Utc>,
 }
 
-pub fn routes<R: Repository>() -> Router<AppState<R>> {
-    Router::new().route("/posts", post(create_post::<R>))
+pub fn routes<S: Service>() -> Router<AppState<S>> {
+    Router::new().route("/posts", post(create_post::<S>))
 }
 
 #[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
-async fn create_post<R: Repository>(
-    State(state): State<AppState<R>>,
+async fn create_post<S: Service>(
+    State(state): State<AppState<S>>,
     Json(payload): Json<CreatePostRequest>,
 ) -> impl IntoResponse {
     debug!("Received create post request");
 
-    // Convert API model to domain model
     let domain_req = match DomainCreatePostRequest::try_from(payload) {
         Ok(req) => {
             debug!("Converted API request to domain request");
@@ -47,19 +47,17 @@ async fn create_post<R: Repository>(
         }
     };
 
-    // Create post in repository
-    debug!("Calling repository to create post");
-    match state.repo.create_post(&domain_req).await {
+    match state.service.create_post(&domain_req).await {
         Ok(post) => {
             info!(post_id = %post.id(), "Successfully created post");
             (StatusCode::CREATED, Json(PostResponse::from(post))).into_response()
         }
-        Err(CreatePostError::Duplicate { title }) => {
+        Err(RepositoryError::CreatePostError(CreatePostError::Duplicate { title })) => {
             error!(%title, "Duplicate post title");
             let error_msg = format!("Post with title '{}' already exists", title);
-            (StatusCode::CONFLICT, Json(error_msg)).into_response()
+            (StatusCode::UNPROCESSABLE_ENTITY, Json(error_msg)).into_response()
         }
-        Err(CreatePostError::Unknown(err)) => {
+        Err(err) => {
             error!(?err, "Unknown error creating post");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
