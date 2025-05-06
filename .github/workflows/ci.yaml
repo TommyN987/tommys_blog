@@ -34,7 +34,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspace: backend
+          workspaces: "./backend -> target"
+          cache-on-failure: true
 
       - name: Run tests
         run: cargo nextest --profile ci run --all-features
@@ -68,6 +69,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          workspace: backend
+          workspaces: "./backend -> target"
+          cache-on-failure: true
       - name: Lint
         run: cargo clippy --all-features --all-targets
