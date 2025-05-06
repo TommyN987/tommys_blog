@@ -33,11 +33,11 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspace: backend
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: nextest
+        run: cargo nextest --profile ci run
           args: run --all-features --profile ci 
 
   fmt:
@@ -52,10 +52,7 @@ jobs:
         with:
           components: rustfmt
       - name: Enforce formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --check
+        run: cargo fmt --check
 
   lint:
     name: Lint
@@ -71,8 +68,7 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Lint 
-        uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --all-features --all-targets
+          workspace: backend
+      - name: Lint 
+        run: cargo clippy --all-features --all-targets
