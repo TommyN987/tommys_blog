@@ -37,8 +37,7 @@ jobs:
           workspace: backend
 
       - name: Run tests
-        run: cargo nextest --profile ci run
-          args: run --all-features --profile ci 
+        run: cargo nextest --all-features --profile ci run
 
   fmt:
     name: Rustfmt
