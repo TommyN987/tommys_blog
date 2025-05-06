@@ -5,6 +5,7 @@ use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 use crate::domain::repository::RepositoryError;
+use crate::domain::service::ServiceError;
 use crate::domain::{
     models::post::CreatePostRequest as DomainCreatePostRequest, repository::CreatePostError,
     service::Service,
@@ -52,7 +53,9 @@ async fn create_post<S: Service>(
             info!(post_id = %post.id(), "Successfully created post");
             (StatusCode::CREATED, Json(PostResponse::from(post))).into_response()
         }
-        Err(RepositoryError::CreatePostError(CreatePostError::Duplicate { title })) => {
+        Err(ServiceError::RepositoryError(RepositoryError::CreatePostError(
+            CreatePostError::Duplicate { title },
+        ))) => {
             error!(%title, "Duplicate post title");
             let error_msg = format!("Post with title '{}' already exists", title);
             (StatusCode::UNPROCESSABLE_ENTITY, Json(error_msg)).into_response()
