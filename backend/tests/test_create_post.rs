@@ -6,6 +6,25 @@ use backend::domain::service::{Service, ServiceError};
 use common::TestFixture;
 
 #[tokio::test]
+async fn test_create_post_works() {
+    // Arrange
+    let fixture = TestFixture::new().await;
+    let title = PostTitle::new("Test title");
+    let body = PostBody::new("Test body");
+
+    // Act
+    let create_req = CreatePostRequest::new(title.clone(), body.clone());
+    let res = fixture.service.create_post(&create_req).await;
+
+    // Assert
+    assert!(res.is_ok());
+
+    let data = res.unwrap();
+    assert_eq!(title, data.title());
+    assert_eq!(body, data.body());
+}
+
+#[tokio::test]
 async fn test_duplicate_title_triggers_error() {
     // Set up test fixture with a PostgreSQL container
     let fixture = TestFixture::new().await;
