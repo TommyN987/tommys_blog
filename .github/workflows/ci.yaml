@@ -2,15 +2,15 @@ name: tommys_blog_ci
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yaml'
+      - "backend/**"
+      - ".github/workflows/ci.yaml"
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yaml'
+      - "backend/**"
+      - ".github/workflows/ci.yaml"
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,7 +24,7 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -37,7 +37,7 @@ jobs:
           workspace: backend
 
       - name: Run tests
-        run: cargo nextest --all-features --profile ci run
+        run: cargo nextest --profile ci run --all-features
 
   fmt:
     name: Rustfmt
@@ -69,5 +69,5 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspace: backend
-      - name: Lint 
+      - name: Lint
         run: cargo clippy --all-features --all-targets
