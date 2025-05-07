@@ -9,6 +9,8 @@ use super::{
 #[async_trait]
 pub trait Service: Send + Sync + Clone + 'static {
     async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, ServiceError>;
+
+    async fn get_all_posts(&self) -> Result<Vec<Post>, ServiceError>;
 }
 
 #[derive(Debug, Error)]

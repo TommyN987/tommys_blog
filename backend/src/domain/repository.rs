@@ -6,6 +6,8 @@ use super::models::post::{CreatePostRequest, Post, PostTitle};
 #[async_trait]
 pub trait Repository: Send + Sync + Clone + 'static {
     async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, RepositoryError>;
+
+    async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError>;
 }
 
 #[derive(Debug, Error)]
