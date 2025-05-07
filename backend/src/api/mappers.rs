@@ -1,16 +1,42 @@
-use crate::domain::models::post::{
-    CreatePostRequest as DomainCreatePostRequest, Post, PostBody, PostTitle,
+use crate::domain::{
+    models::post::{CreatePostRequest as DomainCreatePostRequest, Post, PostBody, PostTitle},
+    service::ServiceError,
 };
 
-use super::post::{CreatePostRequest, PostResponse};
+use super::{
+    post::{CreatePostRequest, CreatePostRequestError, PostResponse},
+    responses::ApiError,
+};
 
 impl TryFrom<CreatePostRequest> for DomainCreatePostRequest {
-    type Error = anyhow::Error;
+    type Error = ApiError;
 
     fn try_from(CreatePostRequest { title, body }: CreatePostRequest) -> Result<Self, Self::Error> {
-        let title = PostTitle::try_new(&title)?;
-        let body = PostBody::try_new(&body)?;
+        let title = PostTitle::try_new(&title).map_err(CreatePostRequestError::from)?;
+        let body = PostBody::try_new(&body).map_err(CreatePostRequestError::from)?;
         Ok(Self::new(title, body))
+    }
+}
+
+impl From<ServiceError> for ApiError {
+    fn from(service_error: ServiceError) -> Self {
+        use crate::domain::{
+            repository::{
+                CreatePostError::*,
+                RepositoryError::{CreatePostError, Unknown as RepoUnknown},
+            },
+            service::ServiceError::*,
+        };
+
+        match service_error {
+            RepositoryError(repo_error) => match repo_error {
+                CreatePostError(error) => match error {
+                    Duplicate { title } => ApiError::Conflict(title.to_string()),
+                    Unknown(e) => e.into(),
+                },
+                RepoUnknown(e) => e.into(),
+            },
+        }
     }
 }
 

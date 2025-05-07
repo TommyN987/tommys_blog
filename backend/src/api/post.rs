@@ -1,16 +1,15 @@
-use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, instrument};
+use thiserror::Error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::domain::repository::RepositoryError;
-use crate::domain::service::ServiceError;
-use crate::domain::{
-    models::post::CreatePostRequest as DomainCreatePostRequest, repository::CreatePostError,
-    service::Service,
-};
+use crate::domain::models::post::{PostBodyEmptyError, PostTitleEmptyError};
+use crate::domain::{models::post::CreatePostRequest as DomainCreatePostRequest, service::Service};
 use crate::server::AppState;
+
+use super::responses::{ApiError, ApiResult, ApiSuccess};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CreatePostRequest {
@@ -18,7 +17,22 @@ pub(super) struct CreatePostRequest {
     pub body: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Error)]
+pub(super) enum CreatePostRequestError {
+    #[error(transparent)]
+    Title(#[from] PostTitleEmptyError),
+    #[error(transparent)]
+    Body(#[from] PostBodyEmptyError),
+}
+
+impl From<CreatePostRequestError> for ApiError {
+    fn from(e: CreatePostRequestError) -> Self {
+        error!(?e, "Failed to convert API request to domain request");
+        Self::UnprossableEntity(e.to_string())
+    }
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub(super) struct PostResponse {
     pub id: Uuid,
     pub title: String,
@@ -34,39 +48,13 @@ pub fn routes<S: Service>() -> Router<AppState<S>> {
 async fn create_post<S: Service>(
     State(state): State<AppState<S>>,
     Json(payload): Json<CreatePostRequest>,
-) -> impl IntoResponse {
-    debug!("Received create post request");
+) -> ApiResult<PostResponse> {
+    let domain_req = DomainCreatePostRequest::try_from(payload)?;
 
-    let domain_req = match DomainCreatePostRequest::try_from(payload) {
-        Ok(req) => {
-            debug!("Converted API request to domain request");
-            req
-        }
-        Err(err) => {
-            error!(?err, "Failed to convert API request to domain request");
-            return (StatusCode::BAD_REQUEST, Json("Invalid request data")).into_response();
-        }
-    };
-
-    match state.service.create_post(&domain_req).await {
-        Ok(post) => {
-            info!(post_id = %post.id(), "Successfully created post");
-            (StatusCode::CREATED, Json(PostResponse::from(post))).into_response()
-        }
-        Err(ServiceError::RepositoryError(RepositoryError::CreatePostError(
-            CreatePostError::Duplicate { title },
-        ))) => {
-            error!(%title, "Duplicate post title");
-            let error_msg = format!("Post with title '{}' already exists", title);
-            (StatusCode::UNPROCESSABLE_ENTITY, Json(error_msg)).into_response()
-        }
-        Err(err) => {
-            error!(?err, "Unknown error creating post");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("An unexpected error occurred"),
-            )
-                .into_response()
-        }
-    }
+    state
+        .service()
+        .create_post(&domain_req)
+        .await
+        .map_err(ApiError::from)
+        .map(|post| ApiSuccess::new(StatusCode::CREATED, post.into()))
 }
