@@ -1,3 +1,5 @@
+use tracing::error;
+
 use crate::domain::{
     models::post::{CreatePostRequest as DomainCreatePostRequest, Post, PostBody, PostTitle},
     service::ServiceError,
@@ -18,6 +20,13 @@ impl TryFrom<CreatePostRequest> for DomainCreatePostRequest {
     }
 }
 
+impl From<CreatePostRequestError> for ApiError {
+    fn from(e: CreatePostRequestError) -> Self {
+        error!(?e, "Failed to convert API request to domain request");
+        Self::UnprocessableEntity(e.to_string())
+    }
+}
+
 impl From<ServiceError> for ApiError {
     fn from(service_error: ServiceError) -> Self {
         use crate::domain::{
@@ -31,7 +40,9 @@ impl From<ServiceError> for ApiError {
         match service_error {
             RepositoryError(repo_error) => match repo_error {
                 CreatePostError(error) => match error {
-                    Duplicate { title } => ApiError::Conflict(title.to_string()),
+                    Duplicate { title } => {
+                        ApiError::Conflict(format!("Post with title {title} already exists."))
+                    }
                     Unknown(e) => e.into(),
                 },
                 RepoUnknown(e) => e.into(),

@@ -148,7 +148,6 @@ dependencies = [
  "axum",
  "chrono",
  "dotenvy",
- "hyper",
  "mockall",
  "serde",
  "serde_json",
