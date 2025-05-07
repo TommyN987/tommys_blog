@@ -33,7 +33,7 @@ pub struct HttpServerConfig<'a> {
 }
 
 pub struct HttpServer {
-    router: Router,
+    pub router: Router,
     listener: TcpListener,
 }
 
