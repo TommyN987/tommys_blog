@@ -1,11 +1,76 @@
-use backend::service::BlogService;
+use axum::{
+    Router,
+    body::Body,
+    http::{Request, Response},
+};
+use backend::{
+    server::{HttpServer, HttpServerConfig},
+    service::BlogService,
+};
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use std::sync::Once;
+use std::{fmt::Display, sync::Once};
 use testcontainers::{ContainerAsync, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
+use tower::ServiceExt;
 use uuid::Uuid;
 
 static INIT: Once = Once::new();
+
+pub struct TestApp {
+    router: Router,
+    _fixture: TestFixture,
+}
+
+impl TestApp {
+    pub async fn new() -> Self {
+        let fixture = TestFixture::new().await;
+        let config = HttpServerConfig { port: "0" };
+        let server = HttpServer::try_new(fixture.service.clone(), config)
+            .await
+            .expect("Failed to create server.");
+
+        Self {
+            router: server.router,
+            _fixture: fixture,
+        }
+    }
+
+    pub async fn call(&self, uri: &str, method: Method, body: Option<Value>) -> Response<Body> {
+        let body = match &body {
+            Some(value) => {
+                Body::from(serde_json::to_string(value).expect("Failed to stringiy body."))
+            }
+            None => Body::from(""),
+        };
+
+        self.router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method.to_string().as_str())
+                    .uri(uri)
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .expect("Failed to build request."),
+            )
+            .await
+            .unwrap_or_else(|_| panic!("Failed to call endpoint {uri}"))
+    }
+
+    pub async fn parse_response<T>(&self, resp: Response<Body>) -> T
+    where
+        T: DeserializeOwned,
+    {
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("Failed to parse body.");
+        let json_resp: Value = serde_json::from_slice(&body).expect("Failed to stringify body.");
+        let result: T = serde_json::from_value(json_resp).expect("Failed to deserialize value.");
+        result
+    }
+}
 
 pub struct TestFixture {
     pub pool: PgPool,
@@ -99,5 +164,23 @@ impl Drop for TestFixture {
                 .execute(&pool)
                 .await;
         });
+    }
+}
+
+pub enum Method {
+    Get,
+    Post,
+}
+
+impl Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Get => "GET",
+                Self::Post => "POST",
+            }
+        )
     }
 }

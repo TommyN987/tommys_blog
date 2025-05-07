@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub(super) type ApiResult<T> = Result<ApiSuccess<T>, ApiError>;
 
@@ -11,10 +11,7 @@ pub(super) type ApiResult<T> = Result<ApiSuccess<T>, ApiError>;
 pub(super) struct ApiSuccess<T: Serialize + PartialEq>(StatusCode, Json<ApiResponseBody<T>>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(super) struct ApiResponseBody<T: Serialize + PartialEq> {
-    status_code: u16,
-    data: T,
-}
+pub(super) struct ApiResponseBody<T: Serialize + PartialEq>(T);
 
 impl<T> PartialEq for ApiSuccess<T>
 where
@@ -27,7 +24,7 @@ where
 
 impl<T: Serialize + PartialEq> ApiSuccess<T> {
     pub(super) fn new(status: StatusCode, data: T) -> Self {
-        ApiSuccess(status, Json(ApiResponseBody::new(status, data)))
+        ApiSuccess(status, Json(ApiResponseBody::new(data)))
     }
 }
 
@@ -38,37 +35,27 @@ impl<T: Serialize + PartialEq> IntoResponse for ApiSuccess<T> {
 }
 
 impl<T: Serialize + PartialEq> ApiResponseBody<T> {
-    pub fn new(status_code: StatusCode, data: T) -> Self {
-        Self {
-            status_code: status_code.as_u16(),
-            data,
-        }
+    pub fn new(data: T) -> Self {
+        Self(data)
     }
 }
 
 impl ApiResponseBody<ApiErrorData> {
-    pub fn new_error(status_code: StatusCode, message: String) -> Self {
-        Self {
-            status_code: status_code.as_u16(),
-            data: ApiErrorData { message },
-        }
+    pub fn new_error(message: String) -> Self {
+        Self(ApiErrorData { message })
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum ApiError {
+pub enum ApiError {
     Conflict(String),
-    UnprossableEntity(String),
+    UnprocessableEntity(String),
     InternalServerError(String),
 }
 
 impl ApiError {
     fn generate_response_input(status_code: StatusCode, message: String) -> Response {
-        (
-            status_code,
-            Json(ApiResponseBody::new_error(status_code, message)),
-        )
-            .into_response()
+        (status_code, Json(ApiResponseBody::new_error(message))).into_response()
     }
 }
 
@@ -88,13 +75,12 @@ impl IntoResponse for ApiError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ApiResponseBody::new_error(
-                        StatusCode::INTERNAL_SERVER_ERROR,
                         "Internal server error".to_string(),
                     )),
                 )
                     .into_response()
             }
-            UnprossableEntity(message) => {
+            UnprocessableEntity(message) => {
                 Self::generate_response_input(StatusCode::UNPROCESSABLE_ENTITY, message)
             }
             Conflict(message) => Self::generate_response_input(StatusCode::CONFLICT, message),
@@ -102,7 +88,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(super) struct ApiErrorData {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiErrorData {
     pub message: String,
 }

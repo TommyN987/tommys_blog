@@ -12,8 +12,8 @@ use crate::server::AppState;
 
 use super::responses::{ApiError, ApiResult, ApiSuccess};
 
-#[derive(Debug, Deserialize)]
-pub(super) struct CreatePostRequest {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreatePostRequest {
     pub title: String,
     pub body: String,
 }
@@ -26,23 +26,16 @@ pub(super) enum CreatePostRequestError {
     Body(#[from] PostBodyEmptyError),
 }
 
-impl From<CreatePostRequestError> for ApiError {
-    fn from(e: CreatePostRequestError) -> Self {
-        error!(?e, "Failed to convert API request to domain request");
-        Self::UnprossableEntity(e.to_string())
-    }
-}
-
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-pub(super) struct PostResponse {
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct PostResponse {
     pub id: Uuid,
     pub title: String,
     pub body: String,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-pub(super) struct BulkPostResponse {
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct BulkPostResponse {
     pub data: Vec<PostResponse>,
 }
 
