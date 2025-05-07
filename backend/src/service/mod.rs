@@ -30,6 +30,10 @@ where
     async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, ServiceError> {
         Ok(self.repo.create_post(input).await?)
     }
+
+    async fn get_all_posts(&self) -> Result<Vec<Post>, ServiceError> {
+        Ok(self.repo.get_all_posts().await?)
+    }
 }
 
 #[cfg(test)]
@@ -53,6 +57,7 @@ mod tests {
         #[async_trait]
         impl Repository for Repository {
             async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, RepositoryError>;
+            async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError>;
         }
     }
 

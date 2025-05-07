@@ -31,4 +31,18 @@ impl Repository for Postgres {
             }
         }
     }
+
+    #[instrument(name = "repository_get_all_posts", skip(self), err)]
+    async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError> {
+        match query::post::get_all_posts(self.pool()).await {
+            Ok(db_posts) => {
+                let posts: Vec<Post> = db_posts.into_iter().map(Into::into).collect();
+                Ok(posts)
+            }
+            Err(err) => {
+                error!(?err, "Failed to get all posts from database");
+                Err(RepositoryError::Unknown(err.into()))
+            }
+        }
+    }
 }

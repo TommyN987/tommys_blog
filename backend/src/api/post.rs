@@ -1,3 +1,4 @@
+use axum::routing::get;
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -40,8 +41,15 @@ pub(super) struct PostResponse {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub(super) struct BulkPostResponse {
+    pub data: Vec<PostResponse>,
+}
+
 pub fn routes<S: Service>() -> Router<AppState<S>> {
-    Router::new().route("/posts", post(create_post::<S>))
+    Router::new()
+        .route("/posts", post(create_post::<S>))
+        .route("/posts", get(get_posts::<S>))
 }
 
 #[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
@@ -57,4 +65,17 @@ async fn create_post<S: Service>(
         .await
         .map_err(ApiError::from)
         .map(|post| ApiSuccess::new(StatusCode::CREATED, post.into()))
+}
+
+async fn get_posts<S: Service>(State(state): State<AppState<S>>) -> ApiResult<BulkPostResponse> {
+    let data: Vec<PostResponse> = state
+        .service()
+        .get_all_posts()
+        .await
+        .map_err(ApiError::from)?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    Ok(ApiSuccess::new(StatusCode::OK, BulkPostResponse { data }))
 }

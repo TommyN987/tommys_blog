@@ -34,3 +34,18 @@ pub async fn create_post(pool: &PgPool, input: CreatePostDbInput) -> Result<DbPo
 
     DbPost::try_from(query_result?)
 }
+
+pub async fn get_all_posts(pool: &PgPool) -> Result<Vec<DbPost>, SqlxError> {
+    let query_results = sqlx::query(
+        r#"
+            SELECT * FROM posts
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    query_results
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<DbPost>, SqlxError>>()
+}
