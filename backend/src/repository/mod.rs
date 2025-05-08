@@ -4,8 +4,8 @@ use tracing::{error, instrument};
 use crate::{
     db::{postgres::Postgres, query},
     domain::{
-        models::post::{CreatePostRequest, Post},
-        repository::{CreatePostError, GetPostError, Repository, RepositoryError},
+        models::post::{CreatePostRequest, Post, UpdatePostRequest},
+        repository::{CreatePostError, GetPostError, Repository, RepositoryError, UpdatePostError},
     },
     ids::PostId,
 };
@@ -52,6 +52,29 @@ impl Repository for Postgres {
                 error!(?err, "Failed to get post with id {post_id} from database");
                 Err(GetPostError::from((err, post_id)))
             }
+        }
+    }
+
+    #[instrument(name = "repository_update_post", skip(self, post_id, input), err)]
+    async fn update_post(
+        &self,
+        post_id: PostId,
+        input: &UpdatePostRequest,
+    ) -> Result<Post, UpdatePostError> {
+        let db_input = input.into();
+
+        if let Some(title) = input.title() {
+            if query::post::get_post_by_title(self.pool(), title.to_string().as_str())
+                .await
+                .is_ok()
+            {
+                return Err(UpdatePostError::Duplicate { title });
+            }
+        }
+
+        match query::post::update_post(self.pool(), post_id, db_input).await {
+            Ok(db_post) => Ok(db_post.into()),
+            Err(err) => Err(UpdatePostError::from((err, post_id))),
         }
     }
 }

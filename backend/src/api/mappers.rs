@@ -1,12 +1,15 @@
 use tracing::error;
 
 use crate::domain::{
-    models::post::{CreatePostRequest as DomainCreatePostRequest, Post, PostBody, PostTitle},
+    models::post::{
+        CreatePostRequest as DomainCreatePostRequest, Post, PostBody, PostTitle,
+        UpdatePostRequest as DomainUpdatePostRequest,
+    },
     service::ServiceError,
 };
 
 use super::{
-    post::{CreatePostRequest, CreatePostRequestError, PostResponse},
+    post::{CreatePostRequest, CreatePostRequestError, PostResponse, UpdatePostRequest},
     responses::ApiError,
 };
 
@@ -16,6 +19,20 @@ impl TryFrom<CreatePostRequest> for DomainCreatePostRequest {
     fn try_from(CreatePostRequest { title, body }: CreatePostRequest) -> Result<Self, Self::Error> {
         let title = PostTitle::try_new(&title).map_err(CreatePostRequestError::from)?;
         let body = PostBody::try_new(&body).map_err(CreatePostRequestError::from)?;
+        Ok(Self::new(title, body))
+    }
+}
+
+impl TryFrom<UpdatePostRequest> for DomainUpdatePostRequest {
+    type Error = ApiError;
+
+    fn try_from(UpdatePostRequest { title, body }: UpdatePostRequest) -> Result<Self, Self::Error> {
+        let title = title
+            .map(|title| PostTitle::try_new(&title).map_err(CreatePostRequestError::from))
+            .transpose()?;
+        let body = body
+            .map(|body| PostBody::try_new(&body).map_err(CreatePostRequestError::from))
+            .transpose()?;
         Ok(Self::new(title, body))
     }
 }
@@ -33,7 +50,13 @@ impl From<ServiceError> for ApiError {
             repository::{
                 CreatePostError::*,
                 GetPostError::{PostNotFound, Unknown as GetPostUnknown},
-                RepositoryError::{CreatePostError, GetPostError, Unknown as RepoUnknown},
+                RepositoryError::{
+                    CreatePostError, GetPostError, Unknown as RepoUnknown, UpdatePostError,
+                },
+                UpdatePostError::{
+                    Duplicate as UpdatePostDuplicate, PostNotFound as UpdatePostNotFound,
+                    Unknown as UpdatePostUnknown,
+                },
             },
             service::ServiceError::*,
         };
@@ -51,6 +74,15 @@ impl From<ServiceError> for ApiError {
                         ApiError::NotFound(format!("Could not find post with id {id}."))
                     }
                     GetPostUnknown(e) => e.into(),
+                },
+                UpdatePostError(error) => match error {
+                    UpdatePostDuplicate { title } => {
+                        ApiError::Conflict(format!("Post with title {title} already exists."))
+                    }
+                    UpdatePostNotFound { id } => {
+                        ApiError::NotFound(format!("Could not find post with id {id}."))
+                    }
+                    UpdatePostUnknown(e) => e.into(),
                 },
                 RepoUnknown(e) => e.into(),
             },

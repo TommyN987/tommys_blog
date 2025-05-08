@@ -27,3 +27,14 @@ impl CreatePostDbInput {
         &self.body
     }
 }
+
+pub struct UpdatePostDbInput {
+    pub title: Option<String>,
+    pub body: Option<String>,
+}
+
+impl UpdatePostDbInput {
+    pub fn new(title: Option<String>, body: Option<String>) -> Self {
+        Self { title, body }
+    }
+}

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     domain::{
-        models::post::{CreatePostRequest, Post},
+        models::post::{CreatePostRequest, Post, UpdatePostRequest},
         repository::{IntoRepositoryError, Repository},
         service::{Service, ServiceError},
     },
@@ -49,6 +49,18 @@ where
             .await
             .map_err(IntoRepositoryError::into_repository_error)?)
     }
+
+    async fn update_post(
+        &self,
+        post_id: PostId,
+        input: &UpdatePostRequest,
+    ) -> Result<Post, ServiceError> {
+        Ok(self
+            .repo
+            .update_post(post_id, input)
+            .await
+            .map_err(IntoRepositoryError::into_repository_error)?)
+    }
 }
 
 #[cfg(test)]
@@ -58,7 +70,9 @@ mod tests {
     use mockall::*;
 
     use crate::domain::models::post::{PostBody, PostTitle};
-    use crate::domain::repository::{CreatePostError, GetPostError, RepositoryError};
+    use crate::domain::repository::{
+        CreatePostError, GetPostError, RepositoryError, UpdatePostError,
+    };
 
     use super::*;
 
@@ -73,6 +87,11 @@ mod tests {
             async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, CreatePostError>;
             async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError>;
             async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, GetPostError>;
+            async fn update_post(
+                &self,
+                post_id: PostId,
+                input: &UpdatePostRequest,
+            ) -> Result<Post, UpdatePostError>;
         }
     }
 
