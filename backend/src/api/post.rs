@@ -1,4 +1,4 @@
-use axum::routing::{get, patch};
+use axum::routing::{delete, get, patch};
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -61,6 +61,7 @@ pub fn routes<S: Service>() -> Router<AppState<S>> {
         .route("/posts", get(get_posts::<S>))
         .route("/posts/{post_id}", get(get_post_by_id::<S>))
         .route("/posts/{post_id}", patch(update_post::<S>))
+        .route("/posts/{post_id}", delete(delete_post::<S>))
 }
 
 #[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
@@ -117,4 +118,16 @@ async fn update_post<S: Service>(
         .await
         .map_err(ApiError::from)
         .map(|post| ApiSuccess::new(StatusCode::OK, post.into()))
+}
+
+async fn delete_post<S: Service>(
+    State(state): State<AppState<S>>,
+    Path(post_id): Path<PostId>,
+) -> ApiResult<()> {
+    state
+        .service()
+        .delete_post(post_id)
+        .await
+        .map_err(ApiError::from)
+        .map(|_| ApiSuccess::new(StatusCode::NO_CONTENT, ()))
 }

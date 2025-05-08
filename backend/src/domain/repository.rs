@@ -18,6 +18,8 @@ pub trait Repository: Send + Sync + Clone + 'static {
         post_id: PostId,
         input: &UpdatePostRequest,
     ) -> Result<Post, UpdatePostError>;
+
+    async fn delete_post(&self, post_id: PostId) -> Result<(), DeletePostError>;
 }
 
 pub trait IntoRepositoryError {
@@ -32,6 +34,8 @@ pub enum RepositoryError {
     GetPostError(GetPostError),
     #[error(transparent)]
     UpdatePostError(UpdatePostError),
+    #[error(transparent)]
+    DeletePostError(DeletePostError),
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
@@ -62,6 +66,14 @@ pub enum UpdatePostError {
     Unknown(#[from] anyhow::Error),
 }
 
+#[derive(Debug, Error)]
+pub enum DeletePostError {
+    #[error("Could not find blog post with id {id}.")]
+    PostNotFound { id: PostId },
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
 impl IntoRepositoryError for CreatePostError {
     fn into_repository_error(self) -> RepositoryError {
         RepositoryError::CreatePostError(self)
@@ -77,5 +89,11 @@ impl IntoRepositoryError for GetPostError {
 impl IntoRepositoryError for UpdatePostError {
     fn into_repository_error(self) -> RepositoryError {
         RepositoryError::UpdatePostError(self)
+    }
+}
+
+impl IntoRepositoryError for DeletePostError {
+    fn into_repository_error(self) -> RepositoryError {
+        RepositoryError::DeletePostError(self)
     }
 }

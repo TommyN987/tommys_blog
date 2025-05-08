@@ -5,7 +5,10 @@ use crate::{
     db::{postgres::Postgres, query},
     domain::{
         models::post::{CreatePostRequest, Post, UpdatePostRequest},
-        repository::{CreatePostError, GetPostError, Repository, RepositoryError, UpdatePostError},
+        repository::{
+            CreatePostError, DeletePostError, GetPostError, Repository, RepositoryError,
+            UpdatePostError,
+        },
     },
     ids::PostId,
 };
@@ -75,6 +78,20 @@ impl Repository for Postgres {
         match query::post::update_post(self.pool(), post_id, db_input).await {
             Ok(db_post) => Ok(db_post.into()),
             Err(err) => Err(UpdatePostError::from((err, post_id))),
+        }
+    }
+
+    #[instrument(name = "repository_delete_post", skip(self, post_id), err)]
+    async fn delete_post(&self, post_id: PostId) -> Result<(), DeletePostError> {
+        match query::post::delete_post(self.pool(), post_id).await {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                error!(
+                    ?err,
+                    "Failed to delete post with id {post_id} from database"
+                );
+                Err(DeletePostError::from((err, post_id)))
+            }
         }
     }
 }

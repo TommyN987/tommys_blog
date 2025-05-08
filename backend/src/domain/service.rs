@@ -21,6 +21,8 @@ pub trait Service: Send + Sync + Clone + 'static {
         post_id: PostId,
         input: &UpdatePostRequest,
     ) -> Result<Post, ServiceError>;
+
+    async fn delete_post(&self, post_id: PostId) -> Result<(), ServiceError>;
 }
 
 #[derive(Debug, Error)]
