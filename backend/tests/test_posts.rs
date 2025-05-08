@@ -124,8 +124,10 @@ async fn test_get_posts_endpoint() {
 
     let _ = app.call("/posts", Method::Post, Some(body_value)).await;
 
+    // Act
     let resp = app.call("/posts", Method::Get, None).await;
 
+    // Assert
     assert_eq!(resp.status(), StatusCode::OK);
 
     let bulk: BulkPostResponse = app.parse_response(resp).await;
@@ -133,6 +135,35 @@ async fn test_get_posts_endpoint() {
     assert_eq!(bulk.data.len(), 1);
 
     let post = bulk.data.first().unwrap();
+
+    assert_eq!(post.title, body.title);
+    assert_eq!(post.body, body.body);
+}
+
+#[tokio::test]
+async fn test_get_post_by_id_endpoint() {
+    // Arrange
+    let app = TestApp::new().await;
+
+    let body = CreatePostRequestDTO {
+        title: "Title".to_string(),
+        body: "Body".to_string(),
+    };
+
+    let body_value = json!(body);
+
+    let resp = app.call("/posts", Method::Post, Some(body_value)).await;
+
+    let post: PostResponse = app.parse_response(resp).await;
+    let id = post.id;
+
+    // Act
+    let resp = app.call(&format!("/posts/{}", id), Method::Get, None).await;
+
+    // Assert
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let post: PostResponse = app.parse_response(resp).await;
 
     assert_eq!(post.title, body.title);
     assert_eq!(post.body, body.body);
