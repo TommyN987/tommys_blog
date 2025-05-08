@@ -5,7 +5,7 @@ use crate::{
     db::models::post::{CreatePostDbInput, DbPost, UpdatePostDbInput},
     domain::{
         models::post::{CreatePostRequest, Post, PostBody, PostTitle, UpdatePostRequest},
-        repository::{CreatePostError, GetPostError, UpdatePostError},
+        repository::{CreatePostError, DeletePostError, GetPostError, UpdatePostError},
     },
     ids::PostId,
 };
@@ -67,6 +67,15 @@ impl From<(SqlxError, PostId)> for GetPostError {
 }
 
 impl From<(SqlxError, PostId)> for UpdatePostError {
+    fn from((error, id): (SqlxError, PostId)) -> Self {
+        match &error {
+            SqlxError::RowNotFound => Self::PostNotFound { id },
+            _ => Self::Unknown(anyhow!(error)),
+        }
+    }
+}
+
+impl From<(SqlxError, PostId)> for DeletePostError {
     fn from((error, id): (SqlxError, PostId)) -> Self {
         match &error {
             SqlxError::RowNotFound => Self::PostNotFound { id },

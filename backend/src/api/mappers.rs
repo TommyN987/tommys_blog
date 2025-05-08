@@ -49,9 +49,13 @@ impl From<ServiceError> for ApiError {
         use crate::domain::{
             repository::{
                 CreatePostError::*,
+                DeletePostError::{
+                    PostNotFound as DeletePostNotFound, Unknown as DeletePostUnknown,
+                },
                 GetPostError::{PostNotFound, Unknown as GetPostUnknown},
                 RepositoryError::{
-                    CreatePostError, GetPostError, Unknown as RepoUnknown, UpdatePostError,
+                    CreatePostError, DeletePostError, GetPostError, Unknown as RepoUnknown,
+                    UpdatePostError,
                 },
                 UpdatePostError::{
                     Duplicate as UpdatePostDuplicate, PostNotFound as UpdatePostNotFound,
@@ -83,6 +87,12 @@ impl From<ServiceError> for ApiError {
                         ApiError::NotFound(format!("Could not find post with id {id}."))
                     }
                     UpdatePostUnknown(e) => e.into(),
+                },
+                DeletePostError(error) => match error {
+                    DeletePostNotFound { id } => {
+                        ApiError::NotFound(format!("Could not find post with id {id}."))
+                    }
+                    DeletePostUnknown(e) => e.into(),
                 },
                 RepoUnknown(e) => e.into(),
             },

@@ -61,6 +61,14 @@ where
             .await
             .map_err(IntoRepositoryError::into_repository_error)?)
     }
+
+    async fn delete_post(&self, post_id: PostId) -> Result<(), ServiceError> {
+        Ok(self
+            .repo
+            .delete_post(post_id)
+            .await
+            .map_err(IntoRepositoryError::into_repository_error)?)
+    }
 }
 
 #[cfg(test)]
@@ -71,7 +79,7 @@ mod tests {
 
     use crate::domain::models::post::{PostBody, PostTitle};
     use crate::domain::repository::{
-        CreatePostError, GetPostError, RepositoryError, UpdatePostError,
+        CreatePostError, DeletePostError, GetPostError, RepositoryError, UpdatePostError,
     };
 
     use super::*;
@@ -92,6 +100,7 @@ mod tests {
                 post_id: PostId,
                 input: &UpdatePostRequest,
             ) -> Result<Post, UpdatePostError>;
+            async fn delete_post(&self, post_id: PostId) -> Result<(), DeletePostError>;
         }
     }
 
