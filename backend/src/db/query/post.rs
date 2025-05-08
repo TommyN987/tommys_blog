@@ -1,7 +1,7 @@
 use sqlx::{PgPool, Row, error::Error as SqlxError, postgres::PgRow};
 
 use crate::{
-    db::models::post::{CreatePostDbInput, DbPost},
+    db::models::post::{CreatePostDbInput, DbPost, UpdatePostDbInput},
     ids::PostId,
 };
 
@@ -64,4 +64,55 @@ pub async fn get_post_by_id(pool: &PgPool, id: PostId) -> Result<DbPost, SqlxErr
     .await?;
 
     DbPost::try_from(query_result)
+}
+
+pub async fn get_post_by_title(pool: &PgPool, title: &str) -> Result<DbPost, SqlxError> {
+    let query_result = sqlx::query(
+        r#"
+            SELECT * FROM posts
+            WHERE title=($1)
+        "#,
+    )
+    .bind(title)
+    .fetch_one(pool)
+    .await?;
+
+    DbPost::try_from(query_result)
+}
+
+pub async fn update_post(
+    pool: &PgPool,
+    id: PostId,
+    UpdatePostDbInput { title, body }: UpdatePostDbInput,
+) -> Result<DbPost, SqlxError> {
+    let query_result = sqlx::query(
+        r#"
+            UPDATE posts
+            SET 
+                title = COALESCE($1, title),
+                body = COALESCE($2, body)
+            WHERE id = $3
+            RETURNING id, title, body, created_at
+        "#,
+    )
+    .bind(title)
+    .bind(body)
+    .bind(id)
+    .fetch_one(pool)
+    .await?;
+
+    DbPost::try_from(query_result)
+}
+
+pub async fn delete_post(pool: &PgPool, id: PostId) -> Result<(), SqlxError> {
+    sqlx::query(
+        r#"
+            DELETE FROM posts WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }

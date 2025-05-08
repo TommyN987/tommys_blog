@@ -1,4 +1,4 @@
-use axum::routing::get;
+use axum::routing::{get, patch};
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -11,7 +11,12 @@ use thiserror::Error;
 use tracing::{error, instrument};
 
 use crate::domain::models::post::{PostBodyEmptyError, PostTitleEmptyError};
-use crate::domain::{models::post::CreatePostRequest as DomainCreatePostRequest, service::Service};
+use crate::domain::{
+    models::post::{
+        CreatePostRequest as DomainCreatePostRequest, UpdatePostRequest as DomainUpdatePostRequest,
+    },
+    service::Service,
+};
 use crate::ids::PostId;
 use crate::server::AppState;
 
@@ -21,6 +26,12 @@ use super::responses::{ApiError, ApiResult, ApiSuccess};
 pub struct CreatePostRequest {
     pub title: String,
     pub body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdatePostRequest {
+    pub title: Option<String>,
+    pub body: Option<String>,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -49,6 +60,7 @@ pub fn routes<S: Service>() -> Router<AppState<S>> {
         .route("/posts", post(create_post::<S>))
         .route("/posts", get(get_posts::<S>))
         .route("/posts/{post_id}", get(get_post_by_id::<S>))
+        .route("/posts/{post_id}", patch(update_post::<S>))
 }
 
 #[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
@@ -87,6 +99,21 @@ async fn get_post_by_id<S: Service>(
     state
         .service()
         .get_posts_by_id(post_id)
+        .await
+        .map_err(ApiError::from)
+        .map(|post| ApiSuccess::new(StatusCode::OK, post.into()))
+}
+
+async fn update_post<S: Service>(
+    State(state): State<AppState<S>>,
+    Path(post_id): Path<PostId>,
+    Json(payload): Json<UpdatePostRequest>,
+) -> ApiResult<PostResponse> {
+    let domain_req = DomainUpdatePostRequest::try_from(payload)?;
+
+    state
+        .service()
+        .update_post(post_id, &domain_req)
         .await
         .map_err(ApiError::from)
         .map(|post| ApiSuccess::new(StatusCode::OK, post.into()))

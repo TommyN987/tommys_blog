@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::ids::PostId;
 
 use super::{
-    models::post::{CreatePostRequest, Post},
+    models::post::{CreatePostRequest, Post, UpdatePostRequest},
     repository::RepositoryError,
 };
 
@@ -15,6 +15,12 @@ pub trait Service: Send + Sync + Clone + 'static {
     async fn get_all_posts(&self) -> Result<Vec<Post>, ServiceError>;
 
     async fn get_posts_by_id(&self, id: PostId) -> Result<Post, ServiceError>;
+
+    async fn update_post(
+        &self,
+        post_id: PostId,
+        input: &UpdatePostRequest,
+    ) -> Result<Post, ServiceError>;
 }
 
 #[derive(Debug, Error)]
