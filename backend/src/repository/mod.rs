@@ -15,7 +15,7 @@ pub mod mappers;
 #[async_trait]
 impl Repository for Postgres {
     #[instrument(name = "repository_create_post", skip(self, input), err)]
-    async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, RepositoryError> {
+    async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, CreatePostError> {
         let db_input = input.into();
 
         match query::post::create_post(self.pool(), db_input).await {
@@ -25,10 +25,7 @@ impl Repository for Postgres {
             }
             Err(err) => {
                 error!(?err, "Failed to create post in database");
-                Err(RepositoryError::CreatePostError(CreatePostError::from((
-                    err,
-                    input.title(),
-                ))))
+                Err(CreatePostError::from((err, input.title())))
             }
         }
     }
@@ -48,14 +45,12 @@ impl Repository for Postgres {
     }
 
     #[instrument(name = "repository_get_post_by_id", skip(self, post_id), err)]
-    async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, RepositoryError> {
+    async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, GetPostError> {
         match query::post::get_post_by_id(self.pool(), post_id).await {
             Ok(db_post) => Ok(db_post.into()),
             Err(err) => {
                 error!(?err, "Failed to get post with id {post_id} from database");
-                Err(RepositoryError::GetPostError(GetPostError::from((
-                    err, post_id,
-                ))))
+                Err(GetPostError::from((err, post_id)))
             }
         }
     }

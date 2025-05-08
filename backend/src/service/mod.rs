@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crate::{
     domain::{
         models::post::{CreatePostRequest, Post},
-        repository::Repository,
+        repository::{IntoRepositoryError, Repository},
         service::{Service, ServiceError},
     },
     ids::PostId,
@@ -31,7 +31,11 @@ where
     R: Repository,
 {
     async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, ServiceError> {
-        Ok(self.repo.create_post(input).await?)
+        Ok(self
+            .repo
+            .create_post(input)
+            .await
+            .map_err(IntoRepositoryError::into_repository_error)?)
     }
 
     async fn get_all_posts(&self) -> Result<Vec<Post>, ServiceError> {
@@ -39,7 +43,11 @@ where
     }
 
     async fn get_posts_by_id(&self, id: PostId) -> Result<Post, ServiceError> {
-        Ok(self.repo.get_post_by_id(id).await?)
+        Ok(self
+            .repo
+            .get_post_by_id(id)
+            .await
+            .map_err(IntoRepositoryError::into_repository_error)?)
     }
 }
 
@@ -50,7 +58,7 @@ mod tests {
     use mockall::*;
 
     use crate::domain::models::post::{PostBody, PostTitle};
-    use crate::domain::repository::RepositoryError;
+    use crate::domain::repository::{CreatePostError, GetPostError, RepositoryError};
 
     use super::*;
 
@@ -62,9 +70,9 @@ mod tests {
 
         #[async_trait]
         impl Repository for Repository {
-            async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, RepositoryError>;
+            async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, CreatePostError>;
             async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError>;
-            async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, RepositoryError>;
+            async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, GetPostError>;
         }
     }
 
