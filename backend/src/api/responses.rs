@@ -49,6 +49,7 @@ impl ApiResponseBody<ApiErrorData> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApiError {
     Conflict(String),
+    NotFound(String),
     UnprocessableEntity(String),
     InternalServerError(String),
 }
@@ -80,6 +81,7 @@ impl IntoResponse for ApiError {
                 )
                     .into_response()
             }
+            NotFound(message) => Self::generate_response_input(StatusCode::NOT_FOUND, message),
             UnprocessableEntity(message) => {
                 Self::generate_response_input(StatusCode::UNPROCESSABLE_ENTITY, message)
             }

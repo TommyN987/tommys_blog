@@ -2,6 +2,8 @@ pub mod api;
 pub mod config;
 pub mod db;
 pub mod domain;
+pub mod ids;
+pub mod macros;
 pub mod repository;
 pub mod server;
 pub mod service;

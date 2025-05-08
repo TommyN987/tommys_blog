@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 
-use crate::domain::{
-    models::post::{CreatePostRequest, Post},
-    repository::Repository,
-    service::{Service, ServiceError},
+use crate::{
+    domain::{
+        models::post::{CreatePostRequest, Post},
+        repository::Repository,
+        service::{Service, ServiceError},
+    },
+    ids::PostId,
 };
 
 pub mod mappers;
@@ -34,6 +37,10 @@ where
     async fn get_all_posts(&self) -> Result<Vec<Post>, ServiceError> {
         Ok(self.repo.get_all_posts().await?)
     }
+
+    async fn get_posts_by_id(&self, id: PostId) -> Result<Post, ServiceError> {
+        Ok(self.repo.get_post_by_id(id).await?)
+    }
 }
 
 #[cfg(test)]
@@ -41,7 +48,6 @@ mod tests {
     use chrono::Utc;
     use mockall::predicate::*;
     use mockall::*;
-    use uuid::Uuid;
 
     use crate::domain::models::post::{PostBody, PostTitle};
     use crate::domain::repository::RepositoryError;
@@ -58,6 +64,7 @@ mod tests {
         impl Repository for Repository {
             async fn create_post(&self, input: &CreatePostRequest) -> Result<Post, RepositoryError>;
             async fn get_all_posts(&self) -> Result<Vec<Post>, RepositoryError>;
+            async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, RepositoryError>;
         }
     }
 
@@ -69,7 +76,7 @@ mod tests {
         let body = PostBody::new("Test body");
         let create_req = CreatePostRequest::new(title.clone(), body.clone());
 
-        let expected_post = Post::new(Uuid::new_v4(), title.clone(), body.clone(), Utc::now());
+        let expected_post = Post::new(PostId::new(), title.clone(), body.clone(), Utc::now());
 
         mock_repo
             .expect_create_post()

@@ -32,7 +32,8 @@ impl From<ServiceError> for ApiError {
         use crate::domain::{
             repository::{
                 CreatePostError::*,
-                RepositoryError::{CreatePostError, Unknown as RepoUnknown},
+                GetPostError::{PostNotFound, Unknown as GetPostUnknown},
+                RepositoryError::{CreatePostError, GetPostError, Unknown as RepoUnknown},
             },
             service::ServiceError::*,
         };
@@ -44,6 +45,12 @@ impl From<ServiceError> for ApiError {
                         ApiError::Conflict(format!("Post with title {title} already exists."))
                     }
                     Unknown(e) => e.into(),
+                },
+                GetPostError(error) => match error {
+                    PostNotFound { id } => {
+                        ApiError::NotFound(format!("Could not find post with id {id}."))
+                    }
+                    GetPostUnknown(e) => e.into(),
                 },
                 RepoUnknown(e) => e.into(),
             },

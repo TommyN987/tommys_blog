@@ -1,13 +1,18 @@
 use axum::routing::get;
-use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
+use axum::{
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
+    routing::post,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, instrument};
-use uuid::Uuid;
 
 use crate::domain::models::post::{PostBodyEmptyError, PostTitleEmptyError};
 use crate::domain::{models::post::CreatePostRequest as DomainCreatePostRequest, service::Service};
+use crate::ids::PostId;
 use crate::server::AppState;
 
 use super::responses::{ApiError, ApiResult, ApiSuccess};
@@ -28,7 +33,7 @@ pub(super) enum CreatePostRequestError {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct PostResponse {
-    pub id: Uuid,
+    pub id: PostId,
     pub title: String,
     pub body: String,
     pub created_at: DateTime<Utc>,
@@ -43,6 +48,7 @@ pub fn routes<S: Service>() -> Router<AppState<S>> {
     Router::new()
         .route("/posts", post(create_post::<S>))
         .route("/posts", get(get_posts::<S>))
+        .route("/posts/{post_id}", get(get_post_by_id::<S>))
 }
 
 #[instrument(name = "create_post_handler", skip(state), fields(title = %payload.title))]
@@ -60,6 +66,7 @@ async fn create_post<S: Service>(
         .map(|post| ApiSuccess::new(StatusCode::CREATED, post.into()))
 }
 
+#[instrument(name = "get_posts", skip(state))]
 async fn get_posts<S: Service>(State(state): State<AppState<S>>) -> ApiResult<BulkPostResponse> {
     let data: Vec<PostResponse> = state
         .service()
@@ -71,4 +78,16 @@ async fn get_posts<S: Service>(State(state): State<AppState<S>>) -> ApiResult<Bu
         .collect();
 
     Ok(ApiSuccess::new(StatusCode::OK, BulkPostResponse { data }))
+}
+
+async fn get_post_by_id<S: Service>(
+    State(state): State<AppState<S>>,
+    Path(post_id): Path<PostId>,
+) -> ApiResult<PostResponse> {
+    state
+        .service()
+        .get_posts_by_id(post_id)
+        .await
+        .map_err(ApiError::from)
+        .map(|post| ApiSuccess::new(StatusCode::OK, post.into()))
 }
