@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+
+use crate::ids::PostId;
 
 pub struct DbPost {
-    pub id: Uuid,
+    pub id: PostId,
     pub title: String,
     pub body: String,
     pub created_at: DateTime<Utc>,

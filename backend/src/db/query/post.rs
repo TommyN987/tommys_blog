@@ -1,7 +1,9 @@
 use sqlx::{PgPool, Row, error::Error as SqlxError, postgres::PgRow};
-use uuid::Uuid;
 
-use crate::db::models::post::{CreatePostDbInput, DbPost};
+use crate::{
+    db::models::post::{CreatePostDbInput, DbPost},
+    ids::PostId,
+};
 
 impl TryFrom<PgRow> for DbPost {
     type Error = SqlxError;
@@ -17,7 +19,7 @@ impl TryFrom<PgRow> for DbPost {
 }
 
 pub async fn create_post(pool: &PgPool, input: CreatePostDbInput) -> Result<DbPost, SqlxError> {
-    let id = Uuid::new_v4();
+    let id = PostId::new();
 
     let query_result = sqlx::query(
         r#"
@@ -48,4 +50,18 @@ pub async fn get_all_posts(pool: &PgPool) -> Result<Vec<DbPost>, SqlxError> {
         .into_iter()
         .map(TryInto::try_into)
         .collect::<Result<Vec<DbPost>, SqlxError>>()
+}
+
+pub async fn get_post_by_id(pool: &PgPool, id: PostId) -> Result<DbPost, SqlxError> {
+    let query_result = sqlx::query(
+        r#"
+            SELECT * FROM posts
+            WHERE id=($1)
+        "#,
+    )
+    .bind(id)
+    .fetch_one(pool)
+    .await?;
+
+    DbPost::try_from(query_result)
 }

@@ -5,8 +5,9 @@ use crate::{
     db::{postgres::Postgres, query},
     domain::{
         models::post::{CreatePostRequest, Post},
-        repository::{CreatePostError, Repository, RepositoryError},
+        repository::{CreatePostError, GetPostError, Repository, RepositoryError},
     },
+    ids::PostId,
 };
 
 pub mod mappers;
@@ -42,6 +43,19 @@ impl Repository for Postgres {
             Err(err) => {
                 error!(?err, "Failed to get all posts from database");
                 Err(RepositoryError::Unknown(err.into()))
+            }
+        }
+    }
+
+    #[instrument(name = "repository_get_post_by_id", skip(self, post_id), err)]
+    async fn get_post_by_id(&self, post_id: PostId) -> Result<Post, RepositoryError> {
+        match query::post::get_post_by_id(self.pool(), post_id).await {
+            Ok(db_post) => Ok(db_post.into()),
+            Err(err) => {
+                error!(?err, "Failed to get post with id {post_id} from database");
+                Err(RepositoryError::GetPostError(GetPostError::from((
+                    err, post_id,
+                ))))
             }
         }
     }

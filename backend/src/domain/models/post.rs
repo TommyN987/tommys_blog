@@ -2,18 +2,19 @@ use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
 use thiserror::Error;
-use uuid::Uuid;
+
+use crate::ids::PostId;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Post {
-    id: Uuid,
+    id: PostId,
     title: PostTitle,
     body: PostBody,
     created_at: DateTime<Utc>,
 }
 
 impl Post {
-    pub fn new(id: Uuid, title: PostTitle, body: PostBody, created_at: DateTime<Utc>) -> Self {
+    pub fn new(id: PostId, title: PostTitle, body: PostBody, created_at: DateTime<Utc>) -> Self {
         Self {
             id,
             title,
@@ -22,7 +23,7 @@ impl Post {
         }
     }
 
-    pub fn id(&self) -> Uuid {
+    pub fn id(&self) -> PostId {
         self.id
     }
 
