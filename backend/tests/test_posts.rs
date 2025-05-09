@@ -180,7 +180,7 @@ async fn test_patch_post_endpoint() {
     let body_value = json!(body);
 
     let resp = app.call("/posts", Method::Post, Some(body_value)).await;
-    
+
     let post: PostResponse = app.parse_response(resp).await;
     let id = post.id;
     assert_eq!(body.title, post.title);
@@ -193,7 +193,13 @@ async fn test_patch_post_endpoint() {
 
     let patch_value = json!(patch);
 
-    let resp = app.call(format!("/posts/{id}").as_str(), Method::Patch, Some(patch_value)).await;
+    let resp = app
+        .call(
+            format!("/posts/{id}").as_str(),
+            Method::Patch,
+            Some(patch_value),
+        )
+        .await;
 
     assert_eq!(resp.status(), StatusCode::OK);
 
@@ -209,8 +215,14 @@ async fn test_patch_post_endpoint() {
 
     let patch_value_to_fail = json!(patch_to_fail);
 
-    let resp = app.call(format!("/posts/{id}").as_str(), Method::Patch, Some(patch_value_to_fail)).await;
-    
+    let resp = app
+        .call(
+            format!("/posts/{id}").as_str(),
+            Method::Patch,
+            Some(patch_value_to_fail),
+        )
+        .await;
+
     assert_eq!(resp.status(), StatusCode::CONFLICT);
 }
 
@@ -232,7 +244,9 @@ async fn test_delete_post_endpoint() {
     let id = post.id;
 
     // Act
-    let resp = app.call(&format!("/posts/{}", id), Method::Delete, None).await;
+    let resp = app
+        .call(&format!("/posts/{}", id), Method::Delete, None)
+        .await;
 
     // Assert
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -242,5 +256,4 @@ async fn test_delete_post_endpoint() {
     let posts: BulkPostResponse = app.parse_response(resp).await;
 
     assert!(posts.data.is_empty());
-    
 }
