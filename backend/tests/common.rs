@@ -171,7 +171,7 @@ pub enum Method {
     Get,
     Post,
     Patch,
-    Delete
+    Delete,
 }
 
 impl Display for Method {
