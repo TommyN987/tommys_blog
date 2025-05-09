@@ -2,7 +2,7 @@ mod common;
 
 use axum::http::StatusCode;
 use backend::api::post::{
-    BulkPostResponse, CreatePostRequest as CreatePostRequestDTO, PostResponse,
+    BulkPostResponse, CreatePostRequest as CreatePostRequestDTO, PostResponse, UpdatePostRequest,
 };
 use backend::api::responses::ApiErrorData;
 use backend::domain::models::post::{CreatePostRequest, PostBody, PostTitle};
@@ -167,4 +167,80 @@ async fn test_get_post_by_id_endpoint() {
 
     assert_eq!(post.title, body.title);
     assert_eq!(post.body, body.body);
+}
+
+#[tokio::test]
+async fn test_patch_post_endpoint() {
+    // Arrange
+    let app = TestApp::new().await;
+    let body = CreatePostRequestDTO {
+        title: "Title".to_string(),
+        body: "Body".to_string(),
+    };
+    let body_value = json!(body);
+
+    let resp = app.call("/posts", Method::Post, Some(body_value)).await;
+    
+    let post: PostResponse = app.parse_response(resp).await;
+    let id = post.id;
+    assert_eq!(body.title, post.title);
+
+    // Act
+    let patch = UpdatePostRequest {
+        title: Some("New title".to_string()),
+        body: None,
+    };
+
+    let patch_value = json!(patch);
+
+    let resp = app.call(format!("/posts/{id}").as_str(), Method::Patch, Some(patch_value)).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let post: PostResponse = app.parse_response(resp).await;
+
+    assert_eq!(patch.title, Some(post.title));
+    assert_eq!(body.body, post.body);
+
+    let patch_to_fail = UpdatePostRequest {
+        title: Some("New title".to_string()),
+        body: None,
+    };
+
+    let patch_value_to_fail = json!(patch_to_fail);
+
+    let resp = app.call(format!("/posts/{id}").as_str(), Method::Patch, Some(patch_value_to_fail)).await;
+    
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn test_delete_post_endpoint() {
+    // Arrange
+    let app = TestApp::new().await;
+
+    let body = CreatePostRequestDTO {
+        title: "Title".to_string(),
+        body: "Body".to_string(),
+    };
+
+    let body_value = json!(body);
+
+    let resp = app.call("/posts", Method::Post, Some(body_value)).await;
+
+    let post: PostResponse = app.parse_response(resp).await;
+    let id = post.id;
+
+    // Act
+    let resp = app.call(&format!("/posts/{}", id), Method::Delete, None).await;
+
+    // Assert
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+    let resp = app.call("/posts", Method::Get, None).await;
+
+    let posts: BulkPostResponse = app.parse_response(resp).await;
+
+    assert!(posts.data.is_empty());
+    
 }
