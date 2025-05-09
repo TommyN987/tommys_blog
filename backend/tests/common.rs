@@ -170,6 +170,8 @@ impl Drop for TestFixture {
 pub enum Method {
     Get,
     Post,
+    Patch,
+    Delete
 }
 
 impl Display for Method {
@@ -180,6 +182,8 @@ impl Display for Method {
             match self {
                 Self::Get => "GET",
                 Self::Post => "POST",
+                Self::Patch => "PATCH",
+                Self::Delete => "DELETE",
             }
         )
     }
